@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-NZ3J8DGYT5"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-NZ3J8DGYT5');
+  
+</script>
+    <meta charset="UTF-8">
+    <title>Inverted Pendulum Simulator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0f0f1a;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            font-family: 'Georgia', sans-serif;
+            color: white;
+        }
+        h1 { font-size: 1.4rem; color: #aaddff; margin-bottom: 4px; }
+        .subtitle { font-size: 0.78rem; color: rgb(200, 200, 228); margin-bottom: 14px; }
+        canvas { border: 2px solid #223; border-radius: 12px; display: block; }
+        .controls { margin-top: 12px; display: flex; gap: 10px; }
+        button {
+            padding: 8px 22px; background: #3355bb; color: white;
+            border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-family: 'Georgia', sans-serif;
+
+        }
+        button:hover { background: #4466cc; }
+        .stats {
+            margin-top: 12px; display: flex; gap: 16px;
+        }
+        .stat {
+            background: rgba(255,255,255,0.05); border: 1px solid #223;
+            border-radius: 8px; padding: 7px 16px; text-align: center;
+        }
+        .stat-label { font-size: 0.68rem; color: #556; text-transform: uppercase; letter-spacing: 1px; }
+        .stat-value { font-size: 1.05rem; color: #aaddff; font-weight: bold; margin-top: 2px; }
+        .footer { margin-top: 12px; font-size: 0.72rem; color: rgb(113, 113, 131); }
+    </style>
+</head>
+<body>
+    <h1>Inverted Pendulum Simulator</h1>
+    <p class="subtitle">C++ · LQR Optimal Control · RK4 Physics Integration</p>
+    <canvas id="canvas" width="900" height="480"></canvas>
+    <div class="controls">
+        <button onclick="resetSim()">↺ Reset</button>
+        <button id="pauseBtn" onclick="togglePause()">⏸ Pause</button>
+    </div>
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-label">Pole Angle</div>
+            <div class="stat-value" id="angleVal">0.000 rad</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">Cart Position</div>
+            <div class="stat-value" id="cartVal">0.000 m</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">Control Force</div>
+            <div class="stat-value" id="forceVal">0.0 N</div>
+        </div>
+    </div>
+    <p class="footer">Physics: RK4 Integration · Controller: LQR (Riccati Equation) · Built with C++ + Emscripten</p>
+
+<script>
+var paused = false;
+
+function resetSim() {
+    if (Module && Module._reset_sim) Module._reset_sim();
+}
+
+function togglePause() {
+    paused = !paused;
+    document.getElementById('pauseBtn').textContent = paused ? '▶ Resume' : '⏸ Pause';
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'r' || e.key === 'R') resetSim();
+    if (e.key === ' ') togglePause();
+});
+
+var Module = {
+    onRuntimeInitialized: function() {
+        var canvas = document.getElementById('canvas');
+        var ctx = canvas.getContext('2d');
+        var W = canvas.width;
+        var H = canvas.height;
+        var scale = 150;
+        var groundY = H * 0.78;
+        var centerX = W / 2;
+
+        function draw() {
+            if (!paused) {
+                Module._step_physics();
+            }
+
+            var cartPos  = Module._get_x();
+            var theta    = Module._get_theta();
+            var force    = Module._get_force();
+            var cartX    = centerX + cartPos * scale;
+            var poleLen  = 2.0 * scale;
+
+            // Update stats
+            document.getElementById('angleVal').textContent = theta.toFixed(3) + ' rad';
+            document.getElementById('cartVal').textContent  = cartPos.toFixed(3) + ' m';
+            document.getElementById('forceVal').textContent = force.toFixed(1) + ' N';
+            document.getElementById('angleVal').style.color =
+                Math.abs(theta) > 0.3 ? '#ff6644' : '#aaddff';
+
+            // ── Background ───────────────────────────────────────────
+            ctx.fillStyle = '#0f0f1a';
+            ctx.fillRect(0, 0, W, H);
+
+            // Subtle grid
+            ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+            ctx.lineWidth = 1;
+            for (var gx = 0; gx < W; gx += 50) {
+                ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke();
+            }
+            for (var gy = 0; gy < H; gy += 50) {
+                ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke();
+            }
+
+            // ── Ground ───────────────────────────────────────────────
+            ctx.fillStyle = '#2a2a3a';
+            ctx.fillRect(0, groundY, W, H - groundY);
+            ctx.fillStyle = '#445';
+            ctx.fillRect(0, groundY, W, 4);
+
+            // Ground hatching
+            ctx.strokeStyle = '#334';
+            ctx.lineWidth = 1.5;
+            for (var hx = -20; hx < W + 20; hx += 20) {
+                ctx.beginPath();
+                ctx.moveTo(hx, groundY + 4);
+                ctx.lineTo(hx + 14, groundY + 14);
+                ctx.stroke();
+            }
+
+            // ── Center marker (green dot) ─────────────────────────────
+            ctx.beginPath();
+            ctx.arc(centerX, groundY + 2, 5, 0, Math.PI * 2);
+            ctx.fillStyle = '#00cc44';
+            ctx.fill();
+
+            // ── Cart shadow ───────────────────────────────────────────
+            ctx.beginPath();
+            ctx.ellipse(cartX, groundY + 24, 48, 7, 0, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0,0,0,0.35)';
+            ctx.fill();
+
+            // ── Cart body ─────────────────────────────────────────────
+            ctx.fillStyle = '#3355bb';
+            ctx.beginPath();
+            ctx.roundRect(cartX - 45, groundY - 22, 90, 38, 6);
+            ctx.fill();
+
+            // Cart highlight
+            ctx.fillStyle = 'rgba(255,255,255,0.08)';
+            ctx.beginPath();
+            ctx.roundRect(cartX - 38, groundY - 17, 76, 11, 4);
+            ctx.fill();
+
+            // ── Wheels ────────────────────────────────────────────────
+            [-28, 28].forEach(function(wx) {
+                ctx.beginPath();
+                ctx.arc(cartX + wx, groundY + 18, 13, 0, Math.PI * 2);
+                ctx.fillStyle = '#1a1a2a'; ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(cartX + wx, groundY + 18, 8, 0, Math.PI * 2);
+                ctx.fillStyle = '#445'; ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(cartX + wx, groundY + 18, 3, 0, Math.PI * 2);
+                ctx.fillStyle = '#aaa'; ctx.fill();
+            });
+
+            // ── Pole ──────────────────────────────────────────────────
+            ctx.save();
+            ctx.translate(cartX, groundY - 20);
+            ctx.rotate(theta);
+
+            // Pole body
+            var poleGrad = ctx.createLinearGradient(-4, 0, 4, 0);
+            poleGrad.addColorStop(0, '#aa2222');
+            poleGrad.addColorStop(0.5, '#ff5555');
+            poleGrad.addColorStop(1, '#aa2222');
+            ctx.fillStyle = poleGrad;
+            ctx.fillRect(-4, -poleLen, 8, poleLen);
+
+            // Pole tip
+            ctx.beginPath();
+            ctx.arc(0, -poleLen, 9, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffbb00';
+            ctx.fill();
+
+            // Tip shine
+            ctx.beginPath();
+            ctx.arc(-3, -poleLen - 3, 4, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255,255,255,0.35)';
+            ctx.fill();
+
+            ctx.restore();
+
+            // ── Force arrow ───────────────────────────────────────────
+            // Shows which direction the controller is pushing
+            var arrowLen = Math.min(Math.abs(force) * 0.3, 80);
+            var arrowDir = force > 0 ? 1 : -1;
+            if (arrowLen > 5) {
+                ctx.beginPath();
+                ctx.moveTo(cartX, groundY - 5);
+                ctx.lineTo(cartX + arrowDir * arrowLen, groundY - 5);
+                ctx.strokeStyle = force > 0 ? '#44ffaa' : '#ff6644';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(cartX + arrowDir * arrowLen, groundY - 5);
+                ctx.lineTo(cartX + arrowDir * (arrowLen - 10), groundY - 11);
+                ctx.lineTo(cartX + arrowDir * (arrowLen - 10), groundY + 1);
+                ctx.fillStyle = force > 0 ? '#44ffaa' : '#ff6644';
+                ctx.fill();
+            }
+
+            requestAnimationFrame(draw);
+        }
+
+        requestAnimationFrame(draw);
+    }
+};
+</script>
+<script src="pendulum.js"></script>
+</body>
+</html>
