@@ -1,7 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- Google tag (gtag.js) -->
+
+<meta name="description" content="An inverted pendulum simulator built in C++ and compiled to WebAssembly. Uses LQR optimal control and RK4 physics integration — the same control theory behind autonomous robots and mining equipment.">
+<meta name="keywords" content="inverted pendulum, control systems, LQR, WebAssembly, C++, robotics, simulation">
+<meta name="author" content="Noura Amouri">
+
+<!-- Open Graph — controls how it looks when shared on LinkedIn/Twitter -->
+<meta property="og:title" content="Inverted Pendulum Simulator — LQR Control">
+<meta property="og:description" content="C++ physics simulator compiled to WebAssembly. Features LQR optimal control and RK4 integration — the same math used in autonomous robots and drilling rigs.">
+<meta property="og:url" content="https://pendulum.nouramouri.com">
+<meta property="og:type" content="website">
+
+<!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-NZ3J8DGYT5"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -9,7 +20,7 @@
   gtag('js', new Date());
 
   gtag('config', 'G-NZ3J8DGYT5');
-  
+
 </script>
     <meta charset="UTF-8">
     <title>Inverted Pendulum Simulator</title>
@@ -22,16 +33,16 @@
             align-items: center;
             justify-content: center;
             min-height: 100vh;
-            font-family: 'Georgia', sans-serif;
+            font-family:Consolas, "Lucida Console", "Courier New", monospace;
             color: white;
         }
-        h1 { font-size: 1.4rem; color: #aaddff; margin-bottom: 4px; }
+        h1 { font-size: 2rem; color: #aaddff; margin-bottom: 4px; }
         .subtitle { font-size: 0.78rem; color: rgb(200, 200, 228); margin-bottom: 14px; }
         canvas { border: 2px solid #223; border-radius: 12px; display: block; }
         .controls { margin-top: 12px; display: flex; gap: 10px; }
         button {
             padding: 8px 22px; background: #3355bb; color: white;
-            border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-family: 'Georgia', sans-serif;
+            border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-family: Consolas, "Lucida Console", "Courier New", monospace;
 
         }
         button:hover { background: #4466cc; }
@@ -69,7 +80,6 @@
             <div class="stat-value" id="forceVal">0.0 N</div>
         </div>
     </div>
-    <p class="footer">Physics: RK4 Integration · Controller: LQR (Riccati Equation) · Built with C++ + Emscripten</p>
 
 <script>
 var paused = false;
