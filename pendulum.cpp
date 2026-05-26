@@ -78,25 +78,46 @@ double lqr_controller(State s) {
 // Global so it persists between frames
 State s = {0.0, 0.0, 0.1, 0.0};
 double dt = 0.002;
+double disturbance_force = 0.0;  // extra force applied by user
+int disturbance_frames = 0;
+
 
 extern "C" {
     // These functions are called FROM JavaScript
     void reset_sim() {
-        s = {0.0, 0.0, 0.1, 0.0};
+        s = {0.0, 0.0, 0.0, 0.0};
+        disturbance_force = 0.0;
+        disturbance_frames = 0;
+
+
     }
 
     // JavaScript calls this every frame to get the current state
     double get_x()         { return s.x; }
     double get_theta()     { return s.theta; }
     double get_force()     { return lqr_controller(s); }
+    void apply_disturbance(double force) { 
+        disturbance_force = force;
+        disturbance_frames = 30;  // apply for 30 frames — visible effect
+
+     }
+
 
     // JavaScript calls this to advance the physics
     void step_physics() {
-        for (int i = 0; i < 8; i++) {
-            double F = lqr_controller(s);
-            s = rk4_step(s, F, dt);
-        }
+        double extra = 0.0;
+       if (disturbance_frames > 0) {
+        extra = disturbance_force;
+        disturbance_frames--;
     }
+    for (int i = 0; i < 8; i++) {
+        double F = lqr_controller(s) + extra;
+        s = rk4_step(s, F, dt);
+    };
+    }
+
+   
+
 }
 
 int main() { return 0; }

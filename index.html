@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
 <meta name="description" content="An inverted pendulum simulator built in C++ and compiled to WebAssembly. Uses LQR optimal control and RK4 physics integration — the same control theory behind autonomous robots and mining equipment.">
 <meta name="keywords" content="inverted pendulum, control systems, LQR, WebAssembly, C++, robotics, simulation">
 <meta name="author" content="Noura Amouri">
@@ -56,16 +55,113 @@
         .stat-label { font-size: 0.68rem; color: #556; text-transform: uppercase; letter-spacing: 1px; }
         .stat-value { font-size: 1.05rem; color: #aaddff; font-weight: bold; margin-top: 2px; }
         .footer { margin-top: 12px; font-size: 0.72rem; color: rgb(113, 113, 131); }
+
+        .disturbance {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid #223;
+    border-radius: 8px;
+    padding: 10px 18px;
+}
+
+    .dist-label {
+        font-size: 0.85rem;
+        color: #aaa;
+        white-space: nowrap;
+    }
+
+    #forceSlider {
+        width: 160px;
+        accent-color: #4466cc;
+    }
+
+    #sliderVal {
+        font-size: 0.85rem;
+        color: #aaddff;
+        width: 55px;
+    }
+
+ .info-box {
+    background: rgba(68, 102, 204, 0.15);
+    border: 1px solid #3355bb;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 0.72rem;
+    color: #aabbdd;
+    text-align: center;
+    line-height: 1.7;
+    max-width: 170px; 
+        font-style: italic;
+ /* forces square-ish shape */
+}
+.controls-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    margin-top: 14px;
+}
+
+
+/* Mobile */
+@media (max-width: 600px) {
+    canvas {
+        width: 100% !important;
+        height: auto !important;
+    }
+
+    .stats {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .disturbance {
+        flex-direction: column;
+    }
+
+    #forceSlider {
+        width: 80vw;
+    }
+
+    h1 { font-size: 1.1rem; }
+    .subtitle { font-size: 0.72rem; }
+}
+
+
     </style>
 </head>
 <body>
     <h1>Inverted Pendulum Simulator</h1>
     <p class="subtitle">C++ · LQR Optimal Control · RK4 Physics Integration</p>
+
+
     <canvas id="canvas" width="900" height="480"></canvas>
-    <div class="controls">
-        <button onclick="resetSim()">↺ Reset</button>
-        <button id="pauseBtn" onclick="togglePause()">⏸ Pause</button>
+</div>
+<div class="controls-row">
+<div class="disturbance">
+    <span class="dist-label">Push Force:</span>
+    <input type="range" id="forceSlider" min="-200" max="200" value="100" step="10">
+    <span id="sliderVal">100 N</span>
+    <button onclick="pushLeft()">⬅ Push Left</button>
+    <button onclick="pushRight()">Push Right ➡</button>
+</div>
+        <div class="info-box">
+    Set the force,<br>
+    push left or right,<br>
+    Watch the the pole rebalance!<br>
+
     </div>
+</div>
+
+<div class="controls">
+<button onclick="resetSim()">↺ Reset</button>
+<button id="pauseBtn" onclick="togglePause()">⏸ Pause</button>
+
+</div>
+
     <div class="stats">
         <div class="stat">
             <div class="stat-label">Pole Angle</div>
@@ -97,6 +193,23 @@ document.addEventListener('keydown', function(e) {
     if (e.key === 'r' || e.key === 'R') resetSim();
     if (e.key === ' ') togglePause();
 });
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('forceSlider').oninput = function() {
+        document.getElementById('sliderVal').textContent = this.value + ' N';
+    };
+});
+
+
+function pushRight() {
+            var force = parseFloat(document.getElementById('forceSlider').value);
+            if (Module._apply_disturbance) Module._apply_disturbance(force);
+        }
+
+        function pushLeft() {
+            var force = parseFloat(document.getElementById('forceSlider').value);
+            if (Module._apply_disturbance) Module._apply_disturbance(-force);
+        }
 
 var Module = {
     onRuntimeInitialized: function() {
@@ -241,6 +354,8 @@ var Module = {
                 ctx.fillStyle = force > 0 ? '#44ffaa' : '#ff6644';
                 ctx.fill();
             }
+
+           
 
             requestAnimationFrame(draw);
         }
